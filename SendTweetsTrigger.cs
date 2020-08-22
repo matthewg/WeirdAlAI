@@ -29,7 +29,7 @@ namespace matthewg.WeirdAlAI
                 {
                     // Replace these two lines with your processing logic.
                     log.LogInformation($"Got tweet to RT: {messageBody}");
-                    var rtTask = twitter.Tweets.PublishRetweetAsync(Int32.Parse(messageBody));
+                    var rtTask = twitter.Tweets.PublishRetweetAsync(long.Parse(messageBody));
                     rtTask.Wait();
                     log.LogInformation($"RT'd with status: {rtTask.Status}");
                     Thread.Sleep(millisecondsTimeout: 10000);
