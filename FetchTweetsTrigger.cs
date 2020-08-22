@@ -19,25 +19,31 @@ namespace matthewg.WeirdAlAI
             [Blob("state/max-tweet", FileAccess.Write)]out string maxTweetOut,
             ILogger log)
         {
-            Auth.SetCredentials(Utils.TwitterCredentials());
+            var twitter = new TwitterClient(Utils.TwitterCredentials());
 
             long maxTweet = 0;
             long.TryParse(maxTweetIn, out maxTweet);
 
-            log.LogInformation($"Running tweet fetch from {maxTweet}...");
+            log.LogInformation(message: $"Running tweet fetch from {maxTweet}...");
             var searchParameter = new SearchTweetsParameters("\"weird AI\"")
             {
                 Lang = LanguageFilter.English,
-                MaximumNumberOfResults = 100,
+                PageSize = 100,
                 SearchType = SearchResultType.Recent,
                 SinceId = maxTweet,
             };
-            foreach (ITweet tweet in Search.SearchTweets(searchParameter))
+            var search = twitter.Search.SearchTweetsAsync(searchParameter);
+            search.Wait();
+            if (!search.IsCompletedSuccessfully) {
+                log.LogError(message: $"Search error: {search.Status}");
+            }
+
+            foreach (ITweet tweet in search.Result)
             {
-                log.LogInformation($"Got tweet: {tweet.ToString()}");
-                var rtTask = tweet.PublishRetweetAsync();
+                log.LogInformation(message: $"Got tweet: {tweet.ToString()}");
+                var rtTask = twitter.Tweets.PublishRetweetAsync(tweet);
                 rtTask.Wait();
-                log.LogInformation($"Task completed with status: {rtTask.Status}");
+                log.LogInformation(message: $"RT completed with status: {rtTask.Status}");
                 if (tweet.Id > maxTweet)
                 {
                     maxTweet = tweet.Id;
