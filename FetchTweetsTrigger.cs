@@ -1,9 +1,9 @@
-using System;
-using System.IO;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Storage;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
 using Tweetinvi;
 using Tweetinvi.Models;
 using Tweetinvi.Parameters;
@@ -17,6 +17,7 @@ namespace matthewg.WeirdAlAI
             [TimerTrigger("0 12 * * * *")]TimerInfo myTimer,
             [Blob("state/max-tweet", FileAccess.Read)]string maxTweetIn,
             [Blob("state/max-tweet", FileAccess.Write)]out string maxTweetOut,
+            [EventHub("sendtweets", Connection = "SendTweetsHubWrite")]IAsyncCollector<string> sendTweets,
             ILogger log)
         {
             var twitter = new TwitterClient(Utils.TwitterCredentials());
@@ -40,10 +41,9 @@ namespace matthewg.WeirdAlAI
 
             foreach (ITweet tweet in search.Result)
             {
-                log.LogInformation(message: $"Got tweet: {tweet.ToString()}");
-                var rtTask = twitter.Tweets.PublishRetweetAsync(tweet);
-                rtTask.Wait();
-                log.LogInformation(message: $"RT completed with status: {rtTask.Status}");
+                var sendTask = sendTweets.AddAsync(tweet.IdStr);
+                sendTask.Wait();
+                log.LogInformation(message: $"Enqueue {tweet} completed with status: {sendTask.Status}");
                 if (tweet.Id > maxTweet)
                 {
                     maxTweet = tweet.Id;
